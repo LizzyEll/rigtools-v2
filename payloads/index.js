@@ -4,7 +4,7 @@ onerror = alert;
 const uiTemplate = `
 `;
 // if (chrome.fileManagerPrivate) {
-  // chrome.fileManagerPrivate.openURL();
+// chrome.fileManagerPrivate.openURL();
 // }
 const managementTemplate = `
 <div id="chrome_management_disable_ext">
@@ -41,7 +41,7 @@ class DefaultExtensionCapabilities {
     const thiz = this;
     chrome.windows.getAll(function (win) {
       win.forEach(function (v) {
-        chrome.tabs.query({windowId: v.id}, function (tabInfos) {
+        chrome.tabs.query({ windowId: v.id }, function (tabInfos) {
           tabInfos.forEach(function (info) {
             const listItem = document.createElement("li");
             listItem.textContent = isTabTitleQueryable
@@ -58,11 +58,11 @@ class DefaultExtensionCapabilities {
                 focused: true
               }, function () {
                 chrome.tabs.update(info.id, { active: true });
-               
+
               });
               window.currentTimeout = setTimeout(function m() {
                 clearTimeout(window.currentTimeout);
-                
+
                 chrome.tabs.getCurrent(function (tab) {
                   chrome.windows.update(tab.windowId, {
                     focused: true
@@ -71,7 +71,7 @@ class DefaultExtensionCapabilities {
                     thiz.disarm = false;
                     thiz.previewing = false;
                   });
-                  
+
                 });
               }, 100);
             };
@@ -92,11 +92,11 @@ class DefaultExtensionCapabilities {
   activate() {
     document.write(DefaultExtensionCapabilities.template);
     // document.close();
-     document.body.querySelectorAll("#code_evaluate").forEach(function (btn) {
-       // alert("prepping button " + btn.id);
+    document.body.querySelectorAll("#code_evaluate").forEach(function (btn) {
+      // alert("prepping button " + btn.id);
       btn.addEventListener("click", this.onBtnClick_.bind(this, btn));
-     }, this);
-    
+    }, this);
+
   }
   static getFS() {
     return new Promise(function (resolve) {
@@ -141,7 +141,7 @@ class DefaultExtensionCapabilities {
   }
 }
 class HostPermissions {
-  activate() {}
+  activate() { }
 }
 function updateExtensionStatus(extlist_element) {
   return new Promise(function (resolve, reject) {
@@ -175,6 +175,13 @@ function updateExtensionStatus(extlist_element) {
     });
   });
 }
+const manifestChangeTemplate = `
+  <div id="manifestchange">
+    <h1>Change manifest</h1>
+    <button id="ManifestChange_Setup">Setup</button>
+  
+  </div>
+`
 const fileManagerPrivateTemplate = `
   <div id="fileManagerPrivate_cap">
     <div id="FMP_openURL">
@@ -183,6 +190,9 @@ const fileManagerPrivateTemplate = `
   </div>
 
 `
+function getExtId() {
+  return new URL(location.origin).host;
+}
 onload = async function x() {
   let foundNothing = true;
   document.open();
@@ -194,7 +204,7 @@ onload = async function x() {
     };
   }
   if (chrome.management.setEnabled) {
-    
+
     this.document.write(managementTemplate);
     const extlist_element = document.querySelector(".extlist");
     await updateExtensionStatus(extlist_element);
@@ -206,7 +216,7 @@ onload = async function x() {
     container_extensions.querySelector("#toggler").onclick = async function dx(e) {
       // open();
       container_extensions.querySelector("#toggler").disabled = true;
-      
+
       let id = container_extensions.querySelector(".extnum").value;
       container_extensions.querySelector(".extnum").value = "";
       try {
@@ -234,6 +244,90 @@ onload = async function x() {
   }
   const otherFeatures = window.chrome.runtime.getManifest();
   const permissions = otherFeatures.permissions;
-  
+
   new DefaultExtensionCapabilities().activate();
+  this.document.write(manifestChangeTemplate);
+  this.document.querySelector('#manifestchange').querySelector('button').onclick = function (ev) {
+    let path = "manifest.json";
+    let is_pdf = false;
+    if (getExtId().includes('mhjfbmdgcfjbbpaeojofohoefgiehjai')) {
+      path = "index.html"
+      is_pdf = true;
+    }
+    const w = open(`chrome-extension://${getExtId()}/${path}`);
+    w.onload = function () {
+      if (is_pdf && !w.Mojo) {
+        w.location.reload();
+        return;
+      }
+      /**
+       * 
+       * @param {FileSystemDirectoryEntry} ent 
+       * @param {string} paths_ 
+       */
+      function resolver(ent, paths_, cb_) {
+        const curPath = paths_.shift();
+        if (paths_.length === 0) {
+          ent.getFile(curPath, { create: false }, cb_);
+
+        } else {
+          ent.getDirectory(curPath, { create: false }, function (e) {
+            resolver(e, paths_, cb_);
+          });
+        }
+      }
+      /**
+       * @param {FileSystemDirectoryEntry} ent
+       * @param {string} path 
+       */
+      const getAndChangeDragTarget = (ent, ...paths) => {
+        return new Promise(function (resolve) {
+          // const splitPath = path.split('/');
+          const currentEnt = ent;
+          const resolvingData = [];
+          const pathCount = paths.length;
+
+          for (const path of paths) {
+            resolver(currentEnt, path.split('/'), (e) => {
+              resolvingData.push(e);
+              if (resolvingData.length === pathCount) {
+                resolve(resolvingData)
+              };
+
+            });
+          }
+        });
+      }
+      function getAFileName() {
+        const bg = chrome.runtime.getManifest().background;
+        if (bg.scripts) {
+          return bg.scripts[0];
+        }
+        if (bg.service_worker) {
+          return bg.service_worker;
+        }
+        if (bg.page) {
+          return bg.page;
+        }
+      }
+      w.chrome.runtime.getPackageDirectoryEntry(async function (ent) {
+        const a = await getAndChangeDragTarget(ent, 'manifest.json', getAFileName());
+        const b = [];
+        const c = await Promise.all(a.map(function(f) {
+          return new Promise(function (resolve){
+            f.file(resolve);
+          })
+        }));
+        ondragstart = function (ev) {
+          ev.dataTransfer.clearData();
+          for (const f of c) {
+            ev.dataTransfer.items.add(f);
+          }
+        }
+        w.close();
+        document.write("drag this back to devtools window");
+        
+      })
+    }
+  }
 };

